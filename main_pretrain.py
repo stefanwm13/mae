@@ -21,6 +21,10 @@ import torch.backends.cudnn as cudnn
 from torch.utils.tensorboard import SummaryWriter
 import torchvision.transforms as transforms
 import torchvision.datasets as datasets
+from torch.utils.data import Dataset, DataLoader
+import pickle
+import cv2
+from PIL import Image
 
 import timm
 
@@ -31,9 +35,58 @@ import util.misc as misc
 from util.misc import NativeScalerWithGradNormCount as NativeScaler
 
 import models_mae
+import matplotlib.pyplot as plt
 
 from engine_pretrain import train_one_epoch
 
+
+class MiniGridDataset(Dataset):
+    def __init__(self, root_dir, transform=None):
+        """
+        Arguments:
+            csv_file (string): Path to the csv file with annotations.
+            root_dir (string): Directory with all the images.
+            transform (callable, optional): Optional transform to be applied
+                on a sample.
+        """
+        self.root_dir = root_dir
+        self.transform = transform
+        
+        # open a file, where you stored the pickled data
+        file = open(self.root_dir, 'rb')
+
+        # dump information to that file
+        self.data = pickle.load(file)
+
+        # close the file
+        file.close()
+
+        
+    def __len__(self):
+        return len(self.data)
+    
+    
+    def __getitem__(self, idx):
+        if torch.is_tensor(idx):
+            idx = idx.tolist()
+            
+        image = self.data[idx][0]
+
+        image = Image.fromarray(image)
+
+        #image = cv2.resize(image, (224,224) , interpolation = cv2.INTER_AREA)
+
+        if self.transform:
+            image = self.transform(image)
+        
+        #.to_tensorv2(image)
+        #image = torch.from_numpy(image).reshape(3, 224, 224)
+        #plt.imshow(image)
+        #plt.show()
+        
+        #print(image.shape)
+        #image = image.reshape(3, 224, 224)
+        return image
 
 def get_args_parser():
     parser = argparse.ArgumentParser('MAE pre-training', add_help=False)
@@ -44,7 +97,7 @@ def get_args_parser():
                         help='Accumulate gradient iterations (for increasing the effective batch size under memory constraints)')
 
     # Model parameters
-    parser.add_argument('--model', default='mae_vit_large_patch16', type=str, metavar='MODEL',
+    parser.add_argument('--model', default='mae_vit_base_patch16', type=str, metavar='MODEL',
                         help='Name of model to train')
 
     parser.add_argument('--input_size', default=224, type=int,
@@ -120,13 +173,25 @@ def main(args):
     cudnn.benchmark = True
 
     # simple augmentation
+    #transform_train = transforms.Compose([
+            #transforms.RandomResizedCrop(args.input_size, scale=(0.2, 1.0), interpolation=3),  # 3 is bicubic
+            #transforms.RandomHorizontalFlip(),
+            #transforms.ToTensor(),
+            #transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
+    #dataset_train = datasets.ImageFolder(os.path.join(args.data_path, 'train'), transform=transform_train)
+    
     transform_train = transforms.Compose([
-            transforms.RandomResizedCrop(args.input_size, scale=(0.2, 1.0), interpolation=3),  # 3 is bicubic
-            transforms.RandomHorizontalFlip(),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
-    dataset_train = datasets.ImageFolder(os.path.join(args.data_path, 'train'), transform=transform_train)
-    print(dataset_train)
+        transforms.ToTensor(),
+        transforms.Resize((224, 224)),
+        transforms.Normalize((0.1307,), (0.3081,))
+    ])
+
+    # Load MNIST dataset
+    #dataset_train = datasets.MNIST('./data', train=True, download=True, transform=transform_train)
+    dataset_train = MiniGridDataset(root_dir="obs-200.p", transform=transform_train)
+
+    
+    #print(dataset_train)
 
     if True:  # args.distributed:
         num_tasks = misc.get_world_size()
@@ -178,7 +243,7 @@ def main(args):
     # following timm: set wd as 0 for bias and norm layers
     param_groups = optim_factory.add_weight_decay(model_without_ddp, args.weight_decay)
     optimizer = torch.optim.AdamW(param_groups, lr=args.lr, betas=(0.9, 0.95))
-    print(optimizer)
+    #print(optimizer)
     loss_scaler = NativeScaler()
 
     misc.load_model(args=args, model_without_ddp=model_without_ddp, optimizer=optimizer, loss_scaler=loss_scaler)

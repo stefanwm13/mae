@@ -1,7 +1,7 @@
 # Copyright (c) Meta Platforms, Inc. and affiliates.
 # All rights reserved.
 
-# This source code is licensed under the license found in the
+# This source code is licensed under the license found in th
 # LICENSE file in the root directory of this source tree.
 # --------------------------------------------------------
 # References:
@@ -119,6 +119,7 @@ class MaskedAutoencoderViT(nn.Module):
         x = torch.einsum('nhwpqc->nchpwq', x)
         imgs = x.reshape(shape=(x.shape[0], 3, h * p, h * p))
         return imgs
+    
 
     def random_masking(self, x, mask_ratio):
         """
