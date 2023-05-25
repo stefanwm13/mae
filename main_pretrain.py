@@ -38,55 +38,10 @@ import models_mae
 import matplotlib.pyplot as plt
 
 from engine_pretrain import train_one_epoch
+from rl_datasets import MiniGridDataset, StateActionReturnDataset
 
 
-class MiniGridDataset(Dataset):
-    def __init__(self, root_dir, transform=None):
-        """
-        Arguments:
-            csv_file (string): Path to the csv file with annotations.
-            root_dir (string): Directory with all the images.
-            transform (callable, optional): Optional transform to be applied
-                on a sample.
-        """
-        self.root_dir = root_dir
-        self.transform = transform
-        
-        # open a file, where you stored the pickled data
-        file = open(self.root_dir, 'rb')
 
-        # dump information to that file
-        self.data = pickle.load(file)
-
-        # close the file
-        file.close()
-
-        
-    def __len__(self):
-        return len(self.data)
-    
-    
-    def __getitem__(self, idx):
-        if torch.is_tensor(idx):
-            idx = idx.tolist()
-            
-        image = self.data[idx][0]
-
-        image = Image.fromarray(image)
-
-        #image = cv2.resize(image, (224,224) , interpolation = cv2.INTER_AREA)
-
-        if self.transform:
-            image = self.transform(image)
-        
-        #.to_tensorv2(image)
-        #image = torch.from_numpy(image).reshape(3, 224, 224)
-        #plt.imshow(image)
-        #plt.show()
-        
-        #print(image.shape)
-        #image = image.reshape(3, 224, 224)
-        return image
 
 def get_args_parser():
     parser = argparse.ArgumentParser('MAE pre-training', add_help=False)
@@ -180,18 +135,33 @@ def main(args):
             #transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
     #dataset_train = datasets.ImageFolder(os.path.join(args.data_path, 'train'), transform=transform_train)
     
-    transform_train = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Resize((224, 224)),
-        transforms.Normalize((0.1307,), (0.3081,))
-    ])
+    #transform_train = transforms.Compose([
+    #    transforms.ToTensor(),
+    #    transforms.Resize((224, 224)),
+        #transforms.Normalize((0.1307,), (0.3081,))
+    # ])
 
-    # Load MNIST dataset
+    # Load dataset
     #dataset_train = datasets.MNIST('./data', train=True, download=True, transform=transform_train)
-    dataset_train = MiniGridDataset(root_dir="obs-200.p", transform=transform_train)
+    #dataset_train = MiniGridDataset(root_dir="obs-200.p", transform=transform_train)
 
-    
-    #print(dataset_train)
+
+    file = open("Breakout.p", "rb")
+    data = pickle.load(file)
+    file.close()
+
+    obss, actions, returns, done_idxs, rtgs, timesteps = data
+
+    context_length = 30
+    dataset_train = StateActionReturnDataset(obss,
+                                             context_length*30,
+                                             actions,
+                                             done_idxs,
+                                             rtgs,
+                                             timesteps)
+
+    print(dataset_train)
+    exit()
 
     if True:  # args.distributed:
         num_tasks = misc.get_world_size()
