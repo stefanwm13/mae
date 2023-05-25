@@ -138,33 +138,33 @@ def main(args):
     #dataset_train = datasets.ImageFolder(os.path.join(args.data_path, 'train'),
     #                                     transform=transform_train)
 
-    #transform_train = transforms.Compose([
-    #    transforms.ToTensor(),
-    #    transforms.Resize((224, 224)),
-    #    transforms.Normalize((0.1307,), (0.3081,))
-    # ])
+    transform_train = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Resize((224, 224)),
+        transforms.Normalize((0.1307,), (0.3081,))
+    ])
 
     # Load dataset
     #dataset_train = datasets.MNIST('./data', train=True, download=True, transform=transform_train)
-    #dataset_train = MiniGridDataset(root_dir="obs-200.p", transform=transform_train)
+    dataset_train = MiniGridDataset(root_dir="obs-200.p", transform=transform_train)
 
 
-    file = open("Breakout.p", "rb")
-    data = pickle.load(file)
-    file.close()
+    #file = open("Breakout.p", "rb")
+    #data = pickle.load(file)
+    #file.close()
 
-    obss, actions, returns, done_idxs, rtgs, timesteps = data
+    #obss, actions, returns, done_idxs, rtgs, timesteps = data
 
-    context_length = 30
-    dataset_train = StateActionReturnDataset(obss,
-                                             context_length*30,
-                                             actions,
-                                             done_idxs,
-                                             rtgs,
-                                             timesteps)
+    #context_length = 30
+    #dataset_train = StateActionReturnDataset(obss,
+    #                                         context_length*30,
+    #                                         actions,
+    #                                         done_idxs,
+    #                                         rtgs,
+    #                                         timesteps)
 
-    print(dataset_train)
-    exit()
+    #print(dataset_train)
+    #exit()
 
     if True:  # args.distributed:
         num_tasks = misc.get_world_size()
